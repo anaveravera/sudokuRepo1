@@ -181,6 +181,20 @@ function readInputGrid(array $basePuzzle): array
   return $grid;
 }
 
+/** @param int[][] $grid */
+function isGridComplete(array $grid): bool
+{
+  for ($row = 0; $row < 9; $row++) {
+    for ($col = 0; $col < 9; $col++) {
+      if ($grid[$row][$col] === 0) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 $difficulty = (string) ($_POST['difficulty'] ?? 'medio');
 if (!in_array($difficulty, ['facil', 'medio', 'dificil'], true)) {
   $difficulty = 'medio';
@@ -188,6 +202,7 @@ if (!in_array($difficulty, ['facil', 'medio', 'dificil'], true)) {
 
 $cellStates = emptyStates();
 $message = 'Juego cargado. Elige dificultad y valida tus jugadas.';
+$isFinished = false;
 
 $basePuzzle = decodeGrid((string) ($_POST['base_puzzle'] ?? ''));
 $solution = decodeGrid((string) ($_POST['solution_grid'] ?? ''));
@@ -222,6 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($action === 'validar') {
     $grid = readInputGrid($basePuzzle);
     $errors = 0;
+    $remaining = 0;
 
     for ($row = 0; $row < 9; $row++) {
       for ($col = 0; $col < 9; $col++) {
@@ -232,6 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($grid[$row][$col] === 0) {
           $cellStates[$row][$col] = '';
+          $remaining++;
           continue;
         }
 
@@ -244,7 +261,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
-    if ($errors === 0) {
+    if ($errors === 0 && $remaining === 0 && isGridComplete($grid)) {
+      $isFinished = true;
+      $message = 'Correcto. Sudoku finalizado.';
+    } elseif ($errors === 0) {
       $message = 'Excelente. Los numeros ingresados hasta ahora son correctos.';
     } else {
       $message = "Tienes {$errors} celda(s) incorrecta(s).";
@@ -253,7 +273,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   if ($action === 'resolver') {
     $grid = $solution;
-    $message = 'Sudoku resuelto.';
+    $isFinished = true;
+    $message = 'Sudoku finalizado.';
   }
 }
 ?>
@@ -282,6 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     button.secondary { background: #475569; }
     button.ghost { background: #0f766e; }
     .msg { margin-top: 10px; font-weight: 700; color: #0f172a; }
+    .finalizado { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #dcfce7; color: #166534; font-weight: 700; text-align: center; }
     @media (max-width: 520px) {
       .wrap { margin: 0; border-radius: 0; min-height: 100vh; }
       .grid { grid-template-columns: repeat(9, 32px); }
@@ -346,6 +368,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit" name="action" value="resolver">Resolver Sudoku</button>
       </div>
       <div class="msg"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div>
+      <?php if ($isFinished): ?>
+        <div class="finalizado">Juego completado con exito.</div>
+      <?php endif; ?>
     </form>
   </div>
 </body>
