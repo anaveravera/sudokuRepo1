@@ -1,5 +1,8 @@
 # Opcion 1: Bitbucket + Jira + Pipelines
 
+> Estado actual: este repositorio esta alojado en GitHub.
+> El flujo Bitbucket/Jira se mantiene como simulacion de proceso enterprise.
+
 ## Flujo
 
 1. Crear/usar issue Jira: `SUM-1`.
@@ -14,6 +17,24 @@
 	- `5) Smoke Test Staging`
 	- `6) Approve + Deploy Production` (manual, en `release/main`)
 6. Merge `develop -> release -> main` con aprobaciones.
+
+## Activar despliegue real en GitHub
+
+Configura en GitHub (Repo Settings):
+
+1. Secrets
+	- `REPO1_RENDER_STAGING_DEPLOY_HOOK`
+	- `REPO1_RENDER_PRODUCTION_DEPLOY_HOOK`
+2. Variables
+	- `REPO1_STAGING_URL` (ej: `https://sudoku-repo1-staging.onrender.com`)
+	- `REPO1_PRODUCTION_URL` (ej: `https://sudoku-repo1.onrender.com`)
+3. Environments
+	- `staging`
+	- `production` (con required reviewers para gate manual)
+
+Workflow ejecutable en repo:
+
+- `.github/workflows/pipeline-sim.yml`
 
 ## Comandos locales
 
