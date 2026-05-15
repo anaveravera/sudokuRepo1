@@ -1,31 +1,140 @@
 image: php:8.2
 
+definitions:
+  caches:
+    composer: ~/.composer/cache
+
 pipelines:
-  branches:
-    main:
+  pull-requests:
+    '**':
       - step:
-          name: Build and Test
+          name: 1) Quality Gate
           caches:
             - composer
           script:
             - apt-get update && apt-get install -y git unzip
             - php -v
             - curl -sS https://getcomposer.org/installer | php
-            - php composer.phar install
-            - php vendor/bin/phpunit
+            - php composer.phar install --no-interaction --prefer-dist
+            - php -l public/index.php
       - step:
-          name: Deploy Staging (placeholder)
-          deployment: staging
-          script:
-            - echo "Deploy to staging here (Vercel/Render API or SSH)."
-  pull-requests:
-    '**':
-      - step:
-          name: PR Validation
+          name: 2) Build + Unit Tests
           caches:
             - composer
           script:
             - apt-get update && apt-get install -y git unzip
             - curl -sS https://getcomposer.org/installer | php
-            - php composer.phar install
+            - php composer.phar install --no-interaction --prefer-dist
             - php vendor/bin/phpunit
+
+  branches:
+    develop:
+      - step:
+          name: 1) Quality Gate
+          caches:
+            - composer
+          script:
+            - apt-get update && apt-get install -y git unzip
+            - php -v
+            - curl -sS https://getcomposer.org/installer | php
+            - php composer.phar install --no-interaction --prefer-dist
+            - php -l public/index.php
+      - step:
+          name: 2) Build + Unit Tests
+          caches:
+            - composer
+          script:
+            - apt-get update && apt-get install -y git unzip
+            - curl -sS https://getcomposer.org/installer | php
+            - php composer.phar install --no-interaction --prefer-dist
+            - php vendor/bin/phpunit
+      - step:
+          name: 3) Package Artifact
+          script:
+            - tar -czf sudoku-artifact.tar.gz public src tests composer.json composer.lock phpunit.xml
+          artifacts:
+            - sudoku-artifact.tar.gz
+      - step:
+          name: 4) Deploy Staging
+          deployment: staging
+          script:
+            - echo "Deploy STAGING (placeholder): Render/VPS/SSH/API"
+      - step:
+          name: 5) Smoke Test Staging
+          script:
+            - echo "Smoke test STAGING (placeholder): curl health endpoint"
+
+    release:
+      - step:
+          name: 1) Quality Gate
+          caches:
+            - composer
+          script:
+            - apt-get update && apt-get install -y git unzip
+            - php -v
+            - curl -sS https://getcomposer.org/installer | php
+            - php composer.phar install --no-interaction --prefer-dist
+            - php -l public/index.php
+      - step:
+          name: 2) Build + Unit Tests
+          caches:
+            - composer
+          script:
+            - apt-get update && apt-get install -y git unzip
+            - curl -sS https://getcomposer.org/installer | php
+            - php composer.phar install --no-interaction --prefer-dist
+            - php vendor/bin/phpunit
+      - step:
+          name: 3) Package Artifact
+          script:
+            - tar -czf sudoku-artifact.tar.gz public src tests composer.json composer.lock phpunit.xml
+          artifacts:
+            - sudoku-artifact.tar.gz
+      - step:
+          name: 4) Deploy Staging
+          deployment: staging
+          script:
+            - echo "Deploy STAGING (placeholder): Render/VPS/SSH/API"
+      - step:
+          name: 5) Smoke Test Staging
+          script:
+            - echo "Smoke test STAGING (placeholder): curl health endpoint"
+      - step:
+          name: 6) Approve + Deploy Production
+          trigger: manual
+          deployment: production
+          script:
+            - echo "Manual gate approved. Deploying to PRODUCTION (placeholder)."
+
+    main:
+      - step:
+          name: 1) Quality Gate
+          caches:
+            - composer
+          script:
+            - apt-get update && apt-get install -y git unzip
+            - php -v
+            - curl -sS https://getcomposer.org/installer | php
+            - php composer.phar install --no-interaction --prefer-dist
+            - php -l public/index.php
+      - step:
+          name: 2) Build + Unit Tests
+          caches:
+            - composer
+          script:
+            - apt-get update && apt-get install -y git unzip
+            - curl -sS https://getcomposer.org/installer | php
+            - php composer.phar install --no-interaction --prefer-dist
+            - php vendor/bin/phpunit
+      - step:
+          name: 3) Package Artifact
+          script:
+            - tar -czf sudoku-artifact.tar.gz public src tests composer.json composer.lock phpunit.xml
+          artifacts:
+            - sudoku-artifact.tar.gz
+      - step:
+          name: 4) Approve + Deploy Production
+          trigger: manual
+          deployment: production
+          script:
+            - echo "Manual gate approved. Deploying to PRODUCTION (placeholder)."
