@@ -1,1 +1,0 @@
-{"version":2,"defects":[],"times":{"Sudoku\\Tests\\SudokuBoardTest::testMoveValidation":0.005,"Sudoku\\Tests\\SudokuSolverTest::testSolverCompletesPuzzle":0.01}}
