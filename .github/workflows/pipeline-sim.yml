@@ -1,0 +1,125 @@
+name: Repo1 Pipeline (Bitbucket Style)
+
+on:
+  push:
+    branches: ["develop", "release", "main"]
+  pull_request:
+    branches: ["develop", "release", "main"]
+
+jobs:
+  quality:
+    name: 1) Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Lint
+        run: php -l public/index.php && php -l public/health.php
+
+  build_test:
+    name: 2) Build + Unit Tests
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Tests
+        run: vendor/bin/phpunit
+
+  package:
+    name: 3) Package Artifact
+    runs-on: ubuntu-latest
+    needs: [build_test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Package
+        run: tar -czf sudoku-artifact.tar.gz public src tests composer.json composer.lock phpunit.xml
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sudoku-artifact-repo1
+          path: sudoku-artifact.tar.gz
+
+  deploy_staging:
+    name: 4) Deploy Staging
+    runs-on: ubuntu-latest
+    needs: [package]
+    if: github.event_name == 'push' && (github.ref_name == 'develop' || github.ref_name == 'release')
+    environment: staging
+    steps:
+      - name: Trigger staging deploy
+        env:
+          DEPLOY_HOOK: ${{ secrets.REPO1_RENDER_STAGING_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "REPO1_RENDER_STAGING_DEPLOY_HOOK no configurado. Saltando deploy real."
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"
+
+  smoke_staging:
+    name: 5) Smoke Test Staging
+    runs-on: ubuntu-latest
+    needs: [deploy_staging]
+    if: github.event_name == 'push' && (github.ref_name == 'develop' || github.ref_name == 'release')
+    steps:
+      - name: Validate staging health endpoint
+        env:
+          STAGING_URL: ${{ vars.REPO1_STAGING_URL }}
+        run: |
+          if [ -z "$STAGING_URL" ]; then
+            echo "REPO1_STAGING_URL no configurado. Saltando smoke test."
+            exit 0
+          fi
+          curl -fsS "$STAGING_URL/health.php"
+
+  approve_production:
+    name: 6) Manual Approval Production
+    runs-on: ubuntu-latest
+    needs: [package]
+    if: github.event_name == 'push' && (github.ref_name == 'release' || github.ref_name == 'main')
+    environment: production
+    steps:
+      - name: Wait approval gate
+        run: echo "Aprobacion manual por entorno production."
+
+  deploy_production:
+    name: 7) Deploy Production
+    runs-on: ubuntu-latest
+    needs: [approve_production]
+    if: github.event_name == 'push' && (github.ref_name == 'release' || github.ref_name == 'main')
+    environment: production
+    steps:
+      - name: Trigger production deploy
+        env:
+          DEPLOY_HOOK: ${{ secrets.REPO1_RENDER_PRODUCTION_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "REPO1_RENDER_PRODUCTION_DEPLOY_HOOK no configurado. Saltando deploy real."
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"
+      - name: Validate production health endpoint
+        env:
+          PRODUCTION_URL: ${{ vars.REPO1_PRODUCTION_URL }}
+        run: |
+          if [ -z "$PRODUCTION_URL" ]; then
+            echo "REPO1_PRODUCTION_URL no configurado. Saltando smoke test prod."
+            exit 0
+          fi
+          curl -fsS "$PRODUCTION_URL/health.php"
